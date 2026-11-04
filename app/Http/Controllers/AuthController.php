@@ -15,7 +15,7 @@ class AuthController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Login');
+        return Inertia::render('Autenticacion/IniciarSesion');
     }
 
     public function store(Request $request): RedirectResponse

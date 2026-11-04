@@ -3,8 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Restaurante 2</title>
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        <title>Pollos Misme</title>
+        @vite(['resources/css/app.css', 'resources/js/aplicacion.js'])
     </head>
     <body class="antialiased bg-gray-50">
         <div id="app"></div>

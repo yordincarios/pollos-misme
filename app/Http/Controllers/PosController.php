@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Dish;
-use App\Models\PaymentSetting;
+use App\Models\InventoryMovement;
 use App\Models\Sale;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -28,11 +28,10 @@ class PosController extends Controller
         $dishes = Dish::with('category')->orderBy('name')->get();
         $archivedDishes = Dish::onlyTrashed()->with('category')->orderBy('name')->get();
 
-        return Inertia::render('Pos/Index', [
+        return Inertia::render('PuntoDeVenta/PuntoDeVenta', [
             'categories' => $categories,
             'dishes' => $dishes,
             'archivedDishes' => $archivedDishes,
-            'paymentQrUrl' => PaymentSetting::qrImageUrl(),
         ]);
     }
 
@@ -40,19 +39,12 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.dish_id' => ['required', 'exists:dishes,id'],
+            'items.*.dish_id' => ['required', 'integer', 'distinct', 'exists:dishes,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:100'],
             'items.*.notes' => ['nullable', 'string', 'max:500'],
-            'cash_received' => ['required_if:payment_method,cash', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
             'payment_method' => ['required', 'string', Rule::in(['cash', 'qr'])],
             'qr_confirmed' => ['exclude_unless:payment_method,qr', 'required', 'accepted'],
         ]);
-
-        if ($validated['payment_method'] === 'qr' && PaymentSetting::qrImagePath() === null) {
-            throw ValidationException::withMessages([
-                'payment_method' => 'Configura el QR de pago desde Ajustes antes de registrar cobros QR.',
-            ]);
-        }
 
         $sale = DB::transaction(function () use ($validated): Sale {
             $dishIds = collect($validated['items'])
@@ -71,13 +63,30 @@ class PosController extends Controller
                 ]);
             }
 
+            $requestedQuantities = collect($validated['items'])
+                ->groupBy('dish_id')
+                ->map(fn ($items): int => (int) $items->sum('quantity'));
+
+            $insufficientStock = $dishes->filter(
+                fn (Dish $dish): bool => $dish->track_stock
+                    && $dish->stock_quantity < $requestedQuantities->get($dish->id, 0),
+            );
+
+            if ($insufficientStock->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Stock insuficiente: '.$insufficientStock
+                        ->map(fn (Dish $dish): string => "{$dish->name} ({$dish->stock_quantity} disponibles)")
+                        ->implode(', ').'.',
+                ]);
+            }
+
             $totalCents = 0;
             $saleItems = [];
 
             foreach ($validated['items'] as $item) {
                 $dish = $dishes->get($item['dish_id']);
 
-                if (! $dish->is_available) {
+                if (! $dish->track_stock && ! $dish->is_available) {
                     throw ValidationException::withMessages([
                         'items' => "El platillo {$dish->name} no está disponible.",
                     ]);
@@ -102,26 +111,37 @@ class PosController extends Controller
                 ]);
             }
 
-            $cashReceivedCents = $validated['payment_method'] === 'cash'
-                ? (int) round((float) $validated['cash_received'] * 100)
-                : 0;
-
-            if ($validated['payment_method'] === 'cash' && $cashReceivedCents < $totalCents) {
-                throw ValidationException::withMessages([
-                    'cash_received' => 'El efectivo recibido debe ser mayor o igual al total.',
-                ]);
-            }
-
             $sale = Sale::create([
                 'ticket_number' => 'TKT-'.now()->format('Ymd').'-'.Str::upper((string) Str::ulid()),
                 'total' => number_format($totalCents / 100, 2, '.', ''),
-                'cash_received' => number_format($cashReceivedCents / 100, 2, '.', ''),
-                'change_given' => number_format(max(0, $cashReceivedCents - $totalCents) / 100, 2, '.', ''),
+                'cash_received' => '0.00',
+                'change_given' => '0.00',
                 'payment_method' => $validated['payment_method'],
             ]);
 
             foreach ($saleItems as $saleItem) {
                 $sale->items()->create($saleItem);
+            }
+
+            foreach ($dishes as $dish) {
+                $quantity = (int) $requestedQuantities->get($dish->id, 0);
+
+                if (! $dish->track_stock || $quantity === 0) {
+                    continue;
+                }
+
+                $stockAfter = $dish->stock_quantity - $quantity;
+                $dish->update(['stock_quantity' => $stockAfter]);
+
+                InventoryMovement::create([
+                    'dish_id' => $dish->id,
+                    'user_id' => auth()->id(),
+                    'sale_id' => $sale->id,
+                    'type' => InventoryMovement::TYPE_SALE,
+                    'quantity' => -$quantity,
+                    'stock_after' => $stockAfter,
+                    'notes' => null,
+                ]);
             }
 
             return $sale;

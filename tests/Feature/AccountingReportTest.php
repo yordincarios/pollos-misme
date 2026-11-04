@@ -68,7 +68,7 @@ class AccountingReportTest extends TestCase
                 ->where('sales.data.0.items.0.notes', 'Sin picante'));
     }
 
-    public function test_print_report_includes_all_sales_and_their_item_details_for_selected_period(): void
+    public function test_print_report_lists_each_sale_without_item_detail_for_selected_period(): void
     {
         $this->actingAs(User::factory()->create());
         $this->travelTo(Carbon::parse('2026-10-18 12:00:00'));
@@ -91,11 +91,13 @@ class AccountingReportTest extends TestCase
 
         $this->get('/admin/accounting/print?from=2026-10-18&to=2026-10-18')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->component('Admin/AccountingPrint', shouldExist: false)
+                ->component('Administracion/Contabilidad/ImprimirReporte', shouldExist: false)
                 ->where('filters.from', '2026-10-18')
                 ->where('summary.tickets', 21)
                 ->where('sales.0.ticket_number', 'TKT-PRINT-DETAIL')
-                ->where('sales.0.items.0.dish_name', 'Silpancho')
+                ->where('sales.0.items_count', 1)
+                ->where('sales.0.items_sum_quantity', '2')
+                ->missing('sales.0.items')
                 ->has('sales', 21));
     }
 

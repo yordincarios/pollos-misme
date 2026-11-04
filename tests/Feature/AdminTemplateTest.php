@@ -17,6 +17,6 @@ class AdminTemplateTest extends TestCase
 
         $this->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->component('Admin/Index', shouldExist: false));
+                ->component('Administracion/PanelPrincipal', shouldExist: false));
     }
 }

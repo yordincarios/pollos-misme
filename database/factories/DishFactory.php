@@ -21,6 +21,18 @@ class DishFactory extends Factory
             'price' => '10.00',
             'image' => null,
             'is_available' => true,
+            'track_stock' => false,
+            'stock_quantity' => 0,
+            'low_stock_threshold' => 0,
         ];
+    }
+
+    public function tracked(int $stock = 10, int $threshold = 3): static
+    {
+        return $this->state(fn (): array => [
+            'track_stock' => true,
+            'stock_quantity' => $stock,
+            'low_stock_threshold' => $threshold,
+        ]);
     }
 }

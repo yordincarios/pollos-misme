@@ -60,7 +60,7 @@ class DishController extends Controller
         } elseif ($removeOldImage) {
             $dish->image = null;
         }
-        if ($request->has('is_available')) {
+        if (! $dish->track_stock && $request->has('is_available')) {
             $dish->is_available = $request->boolean('is_available');
         }
         $dish->save();
@@ -74,6 +74,12 @@ class DishController extends Controller
 
     public function toggleAvailability(Dish $dish): RedirectResponse
     {
+        if ($dish->track_stock) {
+            return back()->withErrors([
+                'availability' => 'La disponibilidad de este producto se controla desde el inventario.',
+            ]);
+        }
+
         $dish->is_available = ! $dish->is_available;
         $dish->save();
 

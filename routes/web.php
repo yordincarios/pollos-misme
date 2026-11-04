@@ -3,12 +3,11 @@
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DishController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\PaymentSettingController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PosController;
-use App\Http\Controllers\StallController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -26,19 +25,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin', [AdminController::class, 'index'])->name('admin.index');
     Route::get('/admin/accounting', [AccountingController::class, 'index'])->name('admin.accounting');
     Route::get('/admin/accounting/print', [AccountingController::class, 'printReport'])->name('admin.accounting.print');
-    Route::get('/admin/stalls', [StallController::class, 'index'])->name('admin.stalls.index');
-    Route::post('/admin/stalls', [StallController::class, 'store'])->name('admin.stalls.store');
-    Route::patch('/admin/stalls/{stall}', [StallController::class, 'update'])->name('admin.stalls.update');
-    Route::patch('/admin/stalls/{stall}/availability', [StallController::class, 'updateAvailability'])->name('admin.stalls.availability');
-    Route::get('/admin/orders', [OrderController::class, 'index'])->name('admin.orders.index');
-    Route::post('/admin/orders', [OrderController::class, 'store'])->name('admin.orders.store');
-    Route::patch('/admin/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('admin.orders.status');
-    Route::post('/admin/orders/{order}/payment', [OrderController::class, 'markPaid'])->name('admin.orders.payment');
-
+    Route::get('/admin/accounting/export', [AccountingController::class, 'exportCsv'])->name('admin.accounting.export');
+    Route::get('/admin/catalog', [CatalogController::class, 'index'])->name('admin.catalog.index');
+    Route::get('/admin/inventory', [InventoryController::class, 'index'])->name('admin.inventory.index');
+    Route::patch('/admin/inventory/{dish}/tracking', [InventoryController::class, 'updateTracking'])->name('admin.inventory.tracking');
+    Route::post('/admin/inventory/{dish}/movements', [InventoryController::class, 'storeMovement'])->name('admin.inventory.movements.store');
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
     Route::post('/pos/sales', [PosController::class, 'storeSale'])->name('pos.sales.store');
-    Route::post('/payment-settings/qr', [PaymentSettingController::class, 'updateQr'])->name('payment-settings.qr.update');
-    Route::delete('/payment-settings/qr', [PaymentSettingController::class, 'destroyQr'])->name('payment-settings.qr.destroy');
 
     Route::post('/dishes', [DishController::class, 'store'])->name('dishes.store');
     Route::post('/dishes/{dish}', [DishController::class, 'update'])->name('dishes.update');

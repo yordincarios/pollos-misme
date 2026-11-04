@@ -21,11 +21,17 @@ class Dish extends Model
         'price',
         'image',
         'is_available',
+        'track_stock',
+        'stock_quantity',
+        'low_stock_threshold',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'is_available' => 'boolean',
+        'track_stock' => 'boolean',
+        'stock_quantity' => 'integer',
+        'low_stock_threshold' => 'integer',
     ];
 
     protected $appends = [
@@ -40,6 +46,11 @@ class Dish extends Model
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function inventoryMovements(): HasMany
+    {
+        return $this->hasMany(InventoryMovement::class);
     }
 
     public function getImageUrlAttribute(): ?string
