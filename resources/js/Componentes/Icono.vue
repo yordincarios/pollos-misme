@@ -117,6 +117,15 @@ defineProps({
     <template v-else-if="name === 'menu'">
       <path d="M4 6h16M4 12h16M4 18h16" />
     </template>
+    <template v-else-if="name === 'wallet'">
+      <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+      <path d="M16 12h5M3 9h18" />
+    </template>
+    <template v-else-if="name === 'users'">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </template>
     <template v-else-if="name === 'arrow-left'">
       <path d="M19 12H5M12 19l-7-7 7-7" />
     </template>

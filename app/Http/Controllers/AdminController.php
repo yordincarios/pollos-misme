@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Gasto;
 use App\Models\Sale;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -47,6 +48,11 @@ class AdminController extends Controller
                 ->sum('total'),
         ];
 
+        $gastosHoy = (float) Gasto::query()->whereDate('fecha', $today)->sum('monto');
+        $gastosSemana = (float) Gasto::query()
+            ->whereBetween('fecha', [$trendStart->toDateString(), $today->toDateString()])
+            ->sum('monto');
+
         $productSales = DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->leftJoin('dishes', 'dishes.id', '=', 'sale_items.dish_id')
@@ -83,6 +89,14 @@ class AdminController extends Controller
             ->get()
             ->keyBy('day');
 
+        $dailyExpenses = Gasto::query()
+            ->whereBetween('fecha', [$trendStart->toDateString(), $today->toDateString()])
+            ->selectRaw('DATE(fecha) as day, COALESCE(SUM(monto), 0) as total')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
         $previousTrendStart = $trendStart->copy()->subDays(7);
         $previousTrendEnd = $trendStart->copy()->subDay()->endOfDay();
         $previousDailyTotals = Sale::query()
@@ -101,11 +115,14 @@ class AdminController extends Controller
             $row = $dailyTotals->get($key);
             $previousRow = $previousDailyTotals->get($day->copy()->subDays(7)->toDateString());
             $total = (float) ($row->total ?? 0);
+            $gastos = (float) ($dailyExpenses->get($key)->total ?? 0);
             $cumulative += $total;
             $dailySales[] = [
                 'date' => $key,
                 'label' => $day->locale('es')->isoFormat('ddd D'),
                 'total' => $total,
+                'gastos' => $gastos,
+                'ganancia' => $total - $gastos,
                 'tickets' => (int) ($row->tickets ?? 0),
                 'cumulative' => $cumulative,
                 'previous_total' => (float) ($previousRow->total ?? 0),
@@ -124,6 +141,12 @@ class AdminController extends Controller
                 'tickets' => (int) $summary->tickets,
                 'cash' => (float) $summary->cash,
                 'qr' => (float) $summary->qr,
+            ],
+            'finanzas' => [
+                'gastos_hoy' => $gastosHoy,
+                'balance_hoy' => (float) $summary->total - $gastosHoy,
+                'gastos_semana' => $gastosSemana,
+                'balance_semana' => $weekSummary['total'] - $gastosSemana,
             ],
             'weekSummary' => $weekSummary,
             'paymentBreakdown' => $paymentBreakdown,

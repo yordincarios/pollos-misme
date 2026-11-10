@@ -1,7 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import FullscreenToggle from '../../Componentes/BotonPantallaCompleta.vue';
-import UiIcon from '../../Componentes/Icono.vue';
 
 const form = useForm({
   email: '',
@@ -24,11 +23,9 @@ const submit = () => {
     </div>
     <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl sm:p-9">
       <div class="mb-8 text-center">
-        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-md">
-          <UiIcon name="utensils" :size="26" />
-        </div>
-        <h1 class="brand-wordmark text-3xl text-slate-900 sm:text-4xl">Pollos <span class="brand-wordmark-accent">Misme</span></h1>
-        <p class="mt-2 text-sm text-slate-500">Ingresa con tu correo y PIN de personal</p>
+        <img :src="'/images/pollos-misme-logo.png'" alt="Pollos Misme" class="mx-auto mb-4 h-44 w-44 object-contain drop-shadow-xl">
+        <h1 class="sr-only">Pollos Misme</h1>
+        <p class="text-sm text-slate-500">Ingresa con tu correo y PIN de personal</p>
       </div>
 
       <form class="space-y-5" @submit.prevent="submit">

@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\PreventResponseCaching;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,8 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo('/admin');
 
+        $middleware->alias([
+            'feature' => EnsureFeatureEnabled::class,
+        ]);
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
+            PreventResponseCaching::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

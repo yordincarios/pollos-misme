@@ -56,10 +56,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', updateState);
   window.removeEventListener('keydown', handleShortcut);
-
-  if (document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {});
-  }
 });
 </script>
 

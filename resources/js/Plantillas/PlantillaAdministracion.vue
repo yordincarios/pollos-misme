@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import FullscreenToggle from '../Componentes/BotonPantallaCompleta.vue';
 import UiIcon from '../Componentes/Icono.vue';
@@ -11,26 +11,11 @@ defineProps({
 
 const page = usePage();
 const currentUser = computed(() => page.props.auth?.user);
+const gestionUsuarios = computed(() => Boolean(page.props.features?.gestion_usuarios));
 const isMobileMenuOpen = ref(false);
-const isDarkMode = ref(false);
 
 const isCurrentPage = (href) => page.url.split('?')[0] === href;
 const logout = () => router.post('/logout');
-
-const toggleDarkMode = () => {
-  isDarkMode.value = !isDarkMode.value;
-  document.documentElement.classList.toggle('dark', isDarkMode.value);
-
-  try {
-    localStorage.setItem('pollos-misme-theme', isDarkMode.value ? 'dark' : 'light');
-  } catch {
-    // Keep the selected theme for this session if storage is unavailable.
-  }
-};
-
-onMounted(() => {
-  isDarkMode.value = document.documentElement.classList.contains('dark');
-});
 </script>
 
 <template>
@@ -52,9 +37,7 @@ onMounted(() => {
       aria-label="Navegación principal"
     >
       <Link href="/admin" class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-700 px-5 text-white no-underline">
-        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600">
-          <UiIcon name="utensils" :size="21" />
-        </span>
+        <img :src="'/images/pollos-misme-logo-small.png'" alt="" class="h-11 w-11 shrink-0 object-contain">
         <span>
           <span class="brand-wordmark brand-wordmark-inverse block text-lg">Pollos <span class="brand-wordmark-accent">Misme</span></span>
           <span class="mt-0.5 block text-xs text-slate-400">Administración</span>
@@ -110,6 +93,17 @@ onMounted(() => {
           <span>Contabilidad</span>
         </Link>
         <Link
+          href="/admin/gastos"
+          @click="isMobileMenuOpen = false"
+          :class="[
+            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold no-underline transition',
+            isCurrentPage('/admin/gastos') ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+          ]"
+        >
+          <UiIcon name="wallet" :size="18" />
+          <span>Gastos</span>
+        </Link>
+        <Link
           href="/admin/inventory"
           @click="isMobileMenuOpen = false"
           :class="[
@@ -119,6 +113,18 @@ onMounted(() => {
         >
           <UiIcon name="box" :size="18" />
           <span>Inventario</span>
+        </Link>
+        <Link
+          v-if="gestionUsuarios"
+          href="/admin/usuarios"
+          @click="isMobileMenuOpen = false"
+          :class="[
+            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold no-underline transition',
+            isCurrentPage('/admin/usuarios') ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+          ]"
+        >
+          <UiIcon name="users" :size="18" />
+          <span>Usuarios</span>
         </Link>
 
       </nav>
@@ -149,15 +155,6 @@ onMounted(() => {
 
         <div class="flex shrink-0 items-center gap-2 sm:gap-3">
           <FullscreenToggle />
-          <button
-            type="button"
-            @click="toggleDarkMode"
-            :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo noche'"
-            :title="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo noche'"
-            class="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-          >
-            <UiIcon :name="isDarkMode ? 'sun' : 'moon'" :size="18" />
-          </button>
           <span class="hidden max-w-32 truncate text-xs font-semibold text-slate-600 sm:block">{{ currentUser?.name }}</span>
           <button type="button" @click="logout" aria-label="Cerrar sesión" title="Cerrar sesión" class="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
             <UiIcon name="logout" :size="18" />

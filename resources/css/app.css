@@ -33,15 +33,24 @@
 
 :root:not(.dark) {
     color-scheme: light;
-    background-color: #f1f5f9;
+    background-color: #eaf4fb;
     color: #0f172a;
-    --chart-empty: #e2e8f0;
-    --chart-grid: #e2e8f0;
-    --chart-axis: #94a3b8;
+    --chart-empty: #d9eaf5;
+    --chart-grid: #d9eaf5;
+    --chart-axis: #7d95a8;
     --chart-current: #0369a1;
     --chart-previous: #dc2626;
     --surface-color: #ffffff;
 }
+
+:root:not(.dark) [class~="bg-slate-50"] { background-color: #f5faff; }
+:root:not(.dark) [class~="bg-slate-50/50"] { background-color: rgb(245 250 255 / 0.8); }
+:root:not(.dark) [class~="bg-slate-50/70"] { background-color: rgb(245 250 255 / 0.88); }
+:root:not(.dark) [class~="bg-slate-100"] { background-color: #eaf4fb; }
+:root:not(.dark) [class~="bg-slate-100/60"] { background-color: rgb(234 244 251 / 0.82); }
+:root:not(.dark) [class~="bg-slate-200"] { background-color: #d9eaf5; }
+:root:not(.dark) [class~="border-slate-200"] { border-color: #d5e7f2; }
+:root:not(.dark) [class~="border-slate-300"] { border-color: #bdd6e5; }
 
 .dark {
     color-scheme: dark;
@@ -487,6 +496,18 @@
     }
 }
 
+@keyframes chart-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @keyframes chart-area-in {
     from {
         opacity: 0;
@@ -595,6 +616,10 @@
 .chart-area-start {
     stop-color: var(--chart-current);
     stop-opacity: 0.24;
+}
+
+.chart-enter {
+    animation: chart-enter 450ms ease-out both;
 }
 
 .chart-area-end {
@@ -754,6 +779,7 @@
     .sales-line,
     .sales-area,
     .sales-point,
+    .chart-enter,
     .pos-dish-card,
     .pos-count-pop,
     .pos-modal-backdrop,

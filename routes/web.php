@@ -6,8 +6,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DishController;
+use App\Http\Controllers\GastoController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -26,7 +28,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/accounting', [AccountingController::class, 'index'])->name('admin.accounting');
     Route::get('/admin/accounting/print', [AccountingController::class, 'printReport'])->name('admin.accounting.print');
     Route::get('/admin/accounting/export', [AccountingController::class, 'exportCsv'])->name('admin.accounting.export');
+    Route::get('/admin/gastos', [GastoController::class, 'index'])->name('admin.gastos.index');
+    Route::post('/admin/gastos', [GastoController::class, 'store'])->name('admin.gastos.store');
+    Route::delete('/admin/gastos/{gasto}', [GastoController::class, 'destroy'])->name('admin.gastos.destroy');
     Route::get('/admin/catalog', [CatalogController::class, 'index'])->name('admin.catalog.index');
+    Route::middleware('feature:gestion_usuarios')->group(function () {
+        Route::get('/admin/usuarios', [UserController::class, 'index'])->name('admin.usuarios.index');
+        Route::post('/admin/usuarios', [UserController::class, 'store'])->name('admin.usuarios.store');
+        Route::patch('/admin/usuarios/{user}', [UserController::class, 'update'])->name('admin.usuarios.update');
+        Route::delete('/admin/usuarios/{user}', [UserController::class, 'destroy'])->name('admin.usuarios.destroy');
+    });
     Route::get('/admin/inventory', [InventoryController::class, 'index'])->name('admin.inventory.index');
     Route::patch('/admin/inventory/{dish}/tracking', [InventoryController::class, 'updateTracking'])->name('admin.inventory.tracking');
     Route::post('/admin/inventory/{dish}/movements', [InventoryController::class, 'storeMovement'])->name('admin.inventory.movements.store');

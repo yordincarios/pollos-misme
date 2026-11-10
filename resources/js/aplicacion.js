@@ -2,6 +2,12 @@ import '../css/app.css';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
 createInertiaApp({
     title: (title) => title ? `${title} - Pollos Misme` : 'Pollos Misme - POS',
     resolve: (name) => {

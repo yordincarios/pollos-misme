@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Dish;
+use App\Models\Gasto;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\User;
@@ -99,6 +100,77 @@ class AccountingReportTest extends TestCase
                 ->where('sales.0.items_sum_quantity', '2')
                 ->missing('sales.0.items')
                 ->has('sales', 21));
+    }
+
+    public function test_category_sales_group_food_drinks_and_new_categories_separately(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $this->travelTo(Carbon::parse('2026-10-18 12:00:00'));
+
+        $food = Category::create(['name' => 'Comida']);
+        $drinks = Category::create(['name' => 'Bebidas']);
+        $desserts = Category::create(['name' => 'Postres']);
+
+        $sale = $this->createSale('TKT-CATEGORY-001', '60.00', 'cash');
+
+        foreach ([
+            ['category' => $food, 'name' => 'Silpancho', 'quantity' => 3],
+            ['category' => $drinks, 'name' => 'Coca Cola', 'quantity' => 2],
+            ['category' => $desserts, 'name' => 'Tarta', 'quantity' => 1],
+        ] as $item) {
+            $dish = Dish::create([
+                'category_id' => $item['category']->id,
+                'name' => $item['name'],
+                'price' => '10.00',
+                'is_available' => true,
+            ]);
+
+            SaleItem::create([
+                'sale_id' => $sale->id,
+                'dish_id' => $dish->id,
+                'dish_name' => $dish->name,
+                'quantity' => $item['quantity'],
+                'price' => '10.00',
+                'subtotal' => number_format($item['quantity'] * 10, 2, '.', ''),
+            ]);
+        }
+
+        $this->get('/admin/accounting?from=2026-10-18&to=2026-10-18')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('categorySales.0.name', 'Comida')
+                ->where('categorySales.0.quantity', 3)
+                ->where('categorySales.1.name', 'Bebidas')
+                ->where('categorySales.1.quantity', 2)
+                ->where('categorySales.2.name', 'Postres')
+                ->where('categorySales.2.quantity', 1));
+    }
+
+    public function test_accounting_includes_expenses_and_balance(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $this->travelTo(Carbon::parse('2026-10-18 12:00:00'));
+
+        $this->createSale('TKT-EXPENSE-001', '100.00', 'cash');
+        Gasto::query()->create([
+            'descripcion' => 'Compra de insumos',
+            'categoria' => 'insumos',
+            'monto' => '30.00',
+            'fecha' => '2026-10-18',
+            'metodo_pago' => 'efectivo',
+        ]);
+
+        $this->get('/admin/accounting?from=2026-10-18&to=2026-10-18')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('summary.gastos', 30)
+                ->where('summary.balance', 70)
+                ->where('gastosResumen.cantidad', 1)
+                ->where('gastos.0.descripcion', 'Compra de insumos'));
+
+        $this->get('/admin/accounting/print?from=2026-10-18&to=2026-10-18')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('summary.gastos', 30)
+                ->where('summary.balance', 70)
+                ->has('gastos', 1));
     }
 
     private function createSale(string $ticketNumber, string $total, string $paymentMethod): Sale

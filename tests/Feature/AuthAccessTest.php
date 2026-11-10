@@ -16,6 +16,17 @@ class AuthAccessTest extends TestCase
         $this->get('/pos')->assertRedirectToRoute('login');
     }
 
+    public function test_authenticated_pages_are_not_cached_by_the_browser(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $response = $this->get('/admin');
+
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+        $this->assertSame('no-cache', $response->headers->get('Pragma'));
+    }
+
     public function test_staff_can_sign_in_with_email_and_four_digit_pin(): void
     {
         $user = User::factory()->create(['password' => '4826']);

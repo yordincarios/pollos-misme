@@ -30,7 +30,6 @@ const orderPanel = ref(null);
 const mobileOrderTab = ref(null);
 const activeMobilePanel = ref('catalog');
 const isOrderExpanded = ref(false);
-const isDarkMode = ref(false);
 const isSuccessDismissed = ref(false);
 const successMessage = computed(() => page.props.flash?.lastSale ? '' : page.props.flash?.success || '');
 
@@ -77,12 +76,6 @@ const handleFullscreenChange = () => {
 };
 
 onMounted(() => {
-  try {
-    isDarkMode.value = localStorage.getItem('pollos-misme-theme') === 'dark';
-  } catch {
-    isDarkMode.value = false;
-  }
-  document.documentElement.classList.toggle('dark', isDarkMode.value);
   updateClock();
   timer = setInterval(updateClock, 1000);
   document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -419,17 +412,6 @@ const handlePosKeydown = (event) => {
 onMounted(() => window.addEventListener('keydown', handlePosKeydown));
 onUnmounted(() => window.removeEventListener('keydown', handlePosKeydown));
 
-const toggleDarkMode = () => {
-  isDarkMode.value = !isDarkMode.value;
-  document.documentElement.classList.toggle('dark', isDarkMode.value);
-
-  try {
-    localStorage.setItem('pollos-misme-theme', isDarkMode.value ? 'dark' : 'light');
-  } catch {
-    // Theme still applies for the current session if storage is unavailable.
-  }
-};
-
 const logout = () => router.post('/logout');
 
 </script>
@@ -441,9 +423,7 @@ const logout = () => router.post('/logout');
     <!-- Top Bar -->
     <header class="z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-xs sm:px-6">
       <div class="flex min-w-0 items-center gap-3 sm:gap-4">
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-600 text-white shadow-md sm:h-10 sm:w-10">
-          <UiIcon name="utensils" :size="22" />
-        </div>
+        <img :src="'/images/pollos-misme-logo-small.png'" alt="" class="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11">
         <div>
           <h1 class="brand-wordmark text-lg text-slate-900 sm:text-2xl">Pollos <span class="brand-wordmark-accent">Misme</span></h1>
           <div class="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 sm:gap-2 sm:text-xs">
@@ -464,16 +444,6 @@ const logout = () => router.post('/logout');
         </div>
 
         <FullscreenToggle />
-
-        <button
-          type="button"
-          @click="toggleDarkMode"
-          :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo noche'"
-          :title="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo noche'"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-        >
-          <UiIcon :name="isDarkMode ? 'sun' : 'moon'" :size="19" />
-        </button>
 
         <button
           type="button"

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Gasto;
 use App\Models\Sale;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,6 +31,15 @@ class AccountingController extends Controller
                 'total' => (float) $sale->total,
             ]);
 
+        $gastos = $this->gastosForPeriod($from, $to, $paymentMethod);
+        $gastosResumen = [
+            'total' => (float) (clone $gastos)->sum('monto'),
+            'cantidad' => (clone $gastos)->count(),
+        ];
+        $summary = $this->summaryFor($sales);
+        $summary['gastos'] = $gastosResumen['total'];
+        $summary['balance'] = $summary['total'] - $summary['gastos'];
+
         return Inertia::render('Administracion/Contabilidad/Contabilidad', [
             'filters' => [
                 'from' => $from->toDateString(),
@@ -37,9 +47,12 @@ class AccountingController extends Controller
                 'payment_method' => $paymentMethod,
             ],
             'today' => today()->toDateString(),
-            'summary' => $this->summaryFor($sales),
+            'summary' => $summary,
             'paymentBreakdown' => $paymentBreakdown,
             'topDishes' => $this->topDishes($sales),
+            'categorySales' => $this->categorySales($sales),
+            'gastos' => (clone $gastos)->with('user')->latest('fecha')->latest('id')->limit(50)->get(),
+            'gastosResumen' => $gastosResumen,
             'paymentMethods' => [
                 ['value' => '', 'label' => 'Todos los métodos'],
                 ['value' => 'cash', 'label' => 'Efectivo'],
@@ -58,6 +71,10 @@ class AccountingController extends Controller
         [$from, $to] = $this->dateRange($request);
         $paymentMethod = $this->paymentMethod($request);
         $sales = $this->salesForPeriod($from, $to, $paymentMethod);
+        $gastos = $this->gastosForPeriod($from, $to, $paymentMethod);
+        $summary = $this->summaryFor($sales);
+        $summary['gastos'] = (float) (clone $gastos)->sum('monto');
+        $summary['balance'] = $summary['total'] - $summary['gastos'];
 
         return Inertia::render('Administracion/Contabilidad/ImprimirReporte', [
             'filters' => [
@@ -65,12 +82,13 @@ class AccountingController extends Controller
                 'to' => $to->toDateString(),
                 'payment_method' => $paymentMethod,
             ],
-            'summary' => $this->summaryFor($sales),
+            'summary' => $summary,
             'sales' => (clone $sales)
                 ->withCount('items')
                 ->withSum('items', 'quantity')
                 ->latest()
                 ->get(),
+            'gastos' => (clone $gastos)->latest('fecha')->latest('id')->get(),
         ]);
     }
 
@@ -157,8 +175,22 @@ class AccountingController extends Controller
             ->when($paymentMethod !== '', fn (Builder $query): Builder => $query->where('payment_method', $paymentMethod));
     }
 
+    private function gastosForPeriod(Carbon $from, Carbon $to, string $paymentMethod = ''): Builder
+    {
+        $expenseMethod = match ($paymentMethod) {
+            'cash' => 'efectivo',
+            'qr' => 'qr',
+            'card', 'transfer' => 'transferencia',
+            default => null,
+        };
+
+        return Gasto::query()
+            ->whereBetween('fecha', [$from->toDateString(), $to->toDateString()])
+            ->when($expenseMethod, fn (Builder $query, string $method): Builder => $query->where('metodo_pago', $method));
+    }
+
     /**
-     * @return array{total: float, tickets: int, cash: float, qr: float, other: float, average: float, items: int}
+     * @return array{total: float, tickets: int, cash: float, qr: float, other: float, items: int}
      */
     private function summaryFor(Builder $sales): array
     {
@@ -171,9 +203,29 @@ class AccountingController extends Controller
             'cash' => (float) (clone $sales)->where('payment_method', 'cash')->sum('total'),
             'qr' => (float) (clone $sales)->where('payment_method', 'qr')->sum('total'),
             'other' => (float) (clone $sales)->whereNotIn('payment_method', ['cash', 'qr'])->sum('total'),
-            'average' => $tickets > 0 ? $total / $tickets : 0.0,
             'items' => (int) DB::table('sale_items')->whereIn('sale_id', (clone $sales)->select('id'))->sum('quantity'),
         ];
+    }
+
+    /**
+     * @return array<int, array{name: string, quantity: int, total: float}>
+     */
+    private function categorySales(Builder $sales): array
+    {
+        return DB::table('sale_items')
+            ->leftJoin('dishes', 'dishes.id', '=', 'sale_items.dish_id')
+            ->leftJoin('categories', 'categories.id', '=', 'dishes.category_id')
+            ->whereIn('sale_items.sale_id', (clone $sales)->select('id'))
+            ->selectRaw("COALESCE(categories.name, 'Sin categoría') as name, SUM(sale_items.quantity) as quantity, COALESCE(SUM(sale_items.subtotal), 0) as total")
+            ->groupBy('categories.name')
+            ->orderByDesc('quantity')
+            ->get()
+            ->map(fn ($category): array => [
+                'name' => (string) $category->name,
+                'quantity' => (int) $category->quantity,
+                'total' => (float) $category->total,
+            ])
+            ->all();
     }
 
     /**

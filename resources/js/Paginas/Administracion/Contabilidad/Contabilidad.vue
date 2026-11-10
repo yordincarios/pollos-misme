@@ -12,8 +12,11 @@ const props = defineProps({
   summary: { type: Object, required: true },
   paymentBreakdown: { type: Array, default: () => [] },
   topDishes: { type: Array, default: () => [] },
+  categorySales: { type: Array, default: () => [] },
   paymentMethods: { type: Array, default: () => [] },
   sales: { type: Object, required: true },
+  gastos: { type: Array, default: () => [] },
+  gastosResumen: { type: Object, required: true },
 });
 
 const filtersForm = useForm({
@@ -98,6 +101,26 @@ const paymentMethodColor = (method) => ({
   qr: '#7c3aed',
 }[method] || '#64748b');
 
+const categoriaGastoLabel = (categoria) => ({
+  insumos: 'Insumos',
+  servicios: 'Servicios',
+  personal: 'Personal',
+  mantenimiento: 'Mantenimiento',
+  otros: 'Otros',
+}[categoria] || categoria);
+
+const metodoGastoLabel = (metodo) => ({
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  qr: 'QR',
+}[metodo] || metodo);
+
+const fechaGasto = (fecha) => new Date(`${fecha}T00:00:00`).toLocaleDateString('es-BO', {
+  dateStyle: 'medium',
+});
+
+const balancePeriodo = computed(() => Number(props.summary.balance) || 0);
+
 const saleDate = (date) => new Date(date).toLocaleString('es-BO', {
   dateStyle: 'short',
   timeStyle: 'short',
@@ -154,8 +177,8 @@ const paymentPercentage = (method) => props.summary.total > 0
   ? Math.min(100, Math.max(0, (method.total / props.summary.total) * 100))
   : 0;
 
-const dishPercentage = (dish) => Number(props.summary.items) > 0
-  ? Math.min(100, Math.max(0, (Number(dish.quantity) / Number(props.summary.items)) * 100))
+const categoryPercentage = (category) => Number(props.summary.items) > 0
+  ? Math.min(100, Math.max(0, (Number(category.quantity) / Number(props.summary.items)) * 100))
   : 0;
 
 const paymentMethodsWithSales = computed(() => props.paymentBreakdown.filter((method) => Number(method.total) > 0));
@@ -180,34 +203,27 @@ const paymentPieLabel = computed(() => paymentMethodsWithSales.value
   .map((method) => `${paymentMethodLabel(method.method)}: ${formatCurrency(method.total)}`)
   .join('; '));
 
-const dishPalette = ['#0369a1', '#4f7a5a', '#d97706', '#7c3aed', '#e76f51', '#64748b'];
+const categoryPalette = ['#0369a1', '#4f7a5a', '#d97706', '#7c3aed', '#e76f51', '#64748b'];
 
-const dishSlices = computed(() => {
-  const slices = props.topDishes.map((dish, index) => ({
-    ...dish,
-    color: dishPalette[index % dishPalette.length],
-  }));
+const categoryColor = (index) => categoryPalette[index]
+  ?? `hsl(${Math.round((index * 137.508) % 360)} 55% 45%)`;
 
-  const otherQuantity = Math.max(0, Number(props.summary.items) - props.topDishes.reduce((sum, dish) => sum + Number(dish.quantity), 0));
+const categorySlices = computed(() => props.categorySales.map((category, index) => ({
+  ...category,
+  color: categoryColor(index),
+})));
 
-  if (otherQuantity > 0) {
-    slices.push({ name: 'Otros', quantity: otherQuantity, total: 0, color: '#64748b' });
-  }
-
-  return slices;
-});
-
-const dishPieStyle = computed(() => {
+const categoryPieStyle = computed(() => {
   if (Number(props.summary.items) <= 0) {
     return { background: 'var(--chart-empty, #e2e8f0)' };
   }
 
   let offset = 0;
-  const segments = dishSlices.value.map((dish) => {
+  const segments = categorySlices.value.map((category) => {
     const start = offset;
-    offset += (Number(dish.quantity) / Number(props.summary.items)) * 100;
+    offset += (Number(category.quantity) / Number(props.summary.items)) * 100;
 
-    return `${dish.color} ${start}% ${offset}%`;
+    return `${category.color} ${start}% ${offset}%`;
   });
 
   return { background: `conic-gradient(${segments.join(', ')})` };
@@ -221,7 +237,7 @@ const dishPieStyle = computed(() => {
         <div>
           <p class="text-xs font-extrabold uppercase tracking-[0.16em] text-primary-700">Contabilidad</p>
           <h1 class="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Ventas y caja</h1>
-          <p class="mt-2 text-sm text-slate-600">Resumen de ventas cobradas; no incluye costos ni gastos.</p>
+          <p class="mt-2 text-sm text-slate-600">Ventas y gastos del período; el balance se calcula restando los gastos a las ventas.</p>
           <div class="mt-3 flex flex-wrap gap-2">
             <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
               <UiIcon name="chart" :size="13" />
@@ -311,7 +327,7 @@ const dishPieStyle = computed(() => {
         </form>
       </section>
 
-      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumen de caja">
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Resumen de caja">
         <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 60ms">
           <p class="text-sm font-semibold text-slate-500">Total vendido</p>
           <p class="mt-2 text-2xl font-black text-slate-900"><AnimatedValue :value="summary.total" format="currency" /></p>
@@ -323,17 +339,22 @@ const dishPieStyle = computed(() => {
           <p class="mt-1 text-xs text-slate-500">tickets registrados</p>
         </article>
         <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 160ms">
-          <p class="text-sm font-semibold text-slate-500">Ticket promedio</p>
-          <p class="mt-2 text-2xl font-black text-slate-900"><AnimatedValue :value="summary.average" format="currency" /></p>
-          <p class="mt-1 text-xs text-slate-500">por venta</p>
-        </article>
-        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 210ms">
           <p class="text-sm font-semibold text-slate-500">Efectivo</p>
           <p class="mt-2 text-2xl font-black text-amber-800"><AnimatedValue :value="summary.cash" format="currency" /></p>
         </article>
-        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 260ms">
+        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 210ms">
           <p class="text-sm font-semibold text-slate-500">QR</p>
           <p class="mt-2 text-2xl font-black text-violet-700"><AnimatedValue :value="summary.qr" format="currency" /></p>
+        </article>
+        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 260ms">
+          <p class="text-sm font-semibold text-slate-500">Gastos del período</p>
+          <p class="mt-2 text-2xl font-black text-rose-700"><AnimatedValue :value="summary.gastos" format="currency" /></p>
+          <p class="mt-1 text-xs text-slate-500">{{ gastosResumen.cantidad }} gastos registrados</p>
+        </article>
+        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 310ms">
+          <p class="text-sm font-semibold text-slate-500">Balance del período</p>
+          <p :class="['mt-2 text-2xl font-black', balancePeriodo >= 0 ? 'text-success-700' : 'text-rose-700']"><AnimatedValue :value="balancePeriodo" format="currency" /></p>
+          <p class="mt-1 text-xs text-slate-500">ventas menos gastos</p>
         </article>
       </section>
 
@@ -375,13 +396,13 @@ const dishPieStyle = computed(() => {
 
         <article class="dashboard-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" style="animation-delay: 420ms">
           <div class="mb-5">
-            <h2 class="font-extrabold text-slate-900">Platos más vendidos</h2>
-            <p class="mt-1 text-xs text-slate-500">Participación por unidades</p>
+            <h2 class="font-extrabold text-slate-900">Ventas por categoría</h2>
+            <p class="mt-1 text-xs text-slate-500">Participación por unidades · incluye bebidas y nuevas categorías</p>
           </div>
           <div class="flex flex-col items-center gap-6 sm:flex-row sm:justify-around">
             <div class="relative flex h-44 w-44 shrink-0 items-center justify-center">
-              <div class="pie-chart pie-chart--delayed h-44 w-44 rounded-full shadow-inner ring-1 ring-slate-200" :style="dishPieStyle" role="img" :aria-label="dishSlices.length ? `Platos más vendidos: ${dishSlices.map((dish) => `${dish.name}: ${dish.quantity} unidades`).join('; ')}` : 'Sin productos vendidos'">
-                <div v-if="dishSlices.length" class="pie-center absolute inset-[23%] flex flex-col items-center justify-center rounded-full bg-white px-2 text-center shadow-inner">
+              <div class="pie-chart pie-chart--delayed h-44 w-44 rounded-full shadow-inner ring-1 ring-slate-200" :style="categoryPieStyle" role="img" :aria-label="categorySlices.length ? `Ventas por categoría: ${categorySlices.map((category) => `${category.name}: ${category.quantity} unidades`).join('; ')}` : 'Sin productos vendidos'">
+                <div v-if="categorySlices.length" class="pie-center absolute inset-[23%] flex flex-col items-center justify-center rounded-full bg-white px-2 text-center shadow-inner">
                   <span class="text-[9px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Unidades</span>
                   <strong class="mt-0.5 text-2xl font-black leading-none text-slate-900"><AnimatedValue :value="summary.items" /></strong>
                   <span class="mt-0.5 text-[10px] font-semibold text-slate-500">vendidas</span>
@@ -389,22 +410,22 @@ const dishPieStyle = computed(() => {
               </div>
               <div v-if="Number(summary.items) <= 0" class="absolute inset-0 flex items-center justify-center rounded-full bg-slate-100/90 text-center text-xs font-bold text-slate-500">Sin ventas</div>
             </div>
-            <div v-if="dishSlices.length" class="chart-legend chart-legend--delayed w-full max-w-xs space-y-3">
-              <div v-for="(dish, index) in dishSlices" :key="dish.name" class="flex items-start gap-3">
-                <span class="mt-1 h-3.5 w-3.5 shrink-0 rounded-full shadow-sm" :style="{ backgroundColor: dish.color }"></span>
+            <div v-if="categorySlices.length" class="chart-legend chart-legend--delayed w-full max-w-xs space-y-3">
+              <div v-for="(category, index) in categorySlices" :key="category.name" class="flex items-start gap-3">
+                <span class="mt-1 h-3.5 w-3.5 shrink-0 rounded-full shadow-sm" :style="{ backgroundColor: category.color }"></span>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-baseline justify-between gap-2">
-                    <p class="truncate text-sm font-bold text-slate-800">{{ dish.name }}</p>
-                    <p class="shrink-0 text-xs font-extrabold text-slate-900">{{ dish.quantity }} und.</p>
+                    <p class="truncate text-sm font-bold text-slate-800">{{ category.name }}</p>
+                    <p class="shrink-0 text-xs font-extrabold text-slate-900">{{ category.quantity }} und.</p>
                   </div>
-                  <p class="text-xs text-slate-500">{{ dishPercentage(dish).toFixed(1) }}% del total</p>
+                  <p class="text-xs text-slate-500">{{ categoryPercentage(category).toFixed(1) }}% del total</p>
                   <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
-                    <div class="chart-bar h-full rounded-full" :style="{ width: `${dishPercentage(dish)}%`, backgroundColor: dish.color, animationDelay: `${700 + index * 80}ms` }"></div>
+                    <div class="chart-bar h-full rounded-full" :style="{ width: `${categoryPercentage(category)}%`, backgroundColor: category.color, animationDelay: `${700 + index * 80}ms` }"></div>
                   </div>
                 </div>
               </div>
             </div>
-            <p v-else class="text-center text-sm text-slate-500">No hay productos vendidos.</p>
+            <p v-else class="text-center text-sm text-slate-500">No hay ventas por categoría en el período.</p>
           </div>
         </article>
       </section>
@@ -490,8 +511,8 @@ const dishPieStyle = computed(() => {
         <aside class="space-y-6">
           <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="mb-4">
-              <h2 class="font-extrabold text-slate-900">Top platos vendidos</h2>
-              <p class="mt-1 text-xs text-slate-500">Los 5 más vendidos del período.</p>
+              <h2 class="font-extrabold text-slate-900">Top productos vendidos</h2>
+              <p class="mt-1 text-xs text-slate-500">Los 5 productos más vendidos del período.</p>
             </div>
             <div v-if="topDishes.length" class="space-y-3">
               <div v-for="(dish, index) in topDishes" :key="dish.name" class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
@@ -535,6 +556,45 @@ const dishPieStyle = computed(() => {
           <p v-else class="text-sm text-slate-500">No hay pagos registrados en el período.</p>
           </div>
         </aside>
+      </section>
+
+      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div>
+            <h2 class="font-extrabold text-slate-900">Gastos del período</h2>
+            <p class="mt-1 text-xs text-slate-500">{{ gastosResumen.cantidad }} gastos · {{ formatCurrency(gastosResumen.total) }}</p>
+          </div>
+          <a href="/admin/gastos" class="text-sm font-bold text-primary-700 no-underline hover:text-primary-900">Administrar gastos</a>
+        </header>
+
+        <div v-if="gastos.length" class="overflow-x-auto">
+          <table class="w-full min-w-[46rem] text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-5 py-3 font-bold">Fecha</th>
+                <th class="px-5 py-3 font-bold">Descripción</th>
+                <th class="px-5 py-3 font-bold">Categoría</th>
+                <th class="px-5 py-3 font-bold">Método</th>
+                <th class="px-5 py-3 font-bold">Usuario</th>
+                <th class="px-5 py-3 text-right font-bold">Monto</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="gasto in gastos" :key="gasto.id">
+                <td class="px-5 py-3 text-slate-600">{{ fechaGasto(gasto.fecha) }}</td>
+                <td class="px-5 py-3">
+                  <p class="font-semibold text-slate-900">{{ gasto.descripcion }}</p>
+                  <p v-if="gasto.notas" class="text-xs text-slate-500">{{ gasto.notas }}</p>
+                </td>
+                <td class="px-5 py-3 text-slate-600">{{ categoriaGastoLabel(gasto.categoria) }}</td>
+                <td class="px-5 py-3 text-slate-600">{{ metodoGastoLabel(gasto.metodo_pago) }}</td>
+                <td class="px-5 py-3 text-slate-600">{{ gasto.user?.name || 'Sistema' }}</td>
+                <td class="px-5 py-3 text-right font-extrabold text-rose-700">{{ formatCurrency(gasto.monto) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="px-5 py-10 text-center text-sm text-slate-500">No hay gastos en el período.</p>
       </section>
     </div>
   </AdminLayout>

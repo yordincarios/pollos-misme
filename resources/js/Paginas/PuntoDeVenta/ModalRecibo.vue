@@ -53,7 +53,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
       >
         <!-- Success Badge -->
         <div class="text-center pb-4 border-b border-dashed border-slate-200">
-          <p class="brand-wordmark text-2xl text-slate-900">Pollos <span class="brand-wordmark-accent">Misme</span></p>
+          <img :src="'/images/pollos-misme-logo-small.png'" alt="Pollos Misme" class="mx-auto mb-2 h-24 w-24 object-contain">
           <p class="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Comprobante de venta</p>
           <div class="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-full bg-success-100 text-success-600 mb-2">
             <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">

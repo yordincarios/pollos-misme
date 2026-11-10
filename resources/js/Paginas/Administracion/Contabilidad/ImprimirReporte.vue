@@ -7,6 +7,7 @@ defineProps({
   filters: { type: Object, required: true },
   summary: { type: Object, required: true },
   sales: { type: Array, required: true },
+  gastos: { type: Array, default: () => [] },
 });
 
 const paymentMethodLabel = (method) => ({
@@ -16,9 +17,27 @@ const paymentMethodLabel = (method) => ({
   transfer: 'Transferencia (anterior)',
 }[method] || 'Otro');
 
+const categoriaGastoLabel = (categoria) => ({
+  insumos: 'Insumos',
+  servicios: 'Servicios',
+  personal: 'Personal',
+  mantenimiento: 'Mantenimiento',
+  otros: 'Otros',
+}[categoria] || categoria);
+
+const metodoGastoLabel = (metodo) => ({
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  qr: 'QR',
+}[metodo] || metodo);
+
 const formatDate = (date) => new Date(date).toLocaleString('es-BO', {
   dateStyle: 'short',
   timeStyle: 'short',
+});
+
+const formatExpenseDate = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('es-BO', {
+  dateStyle: 'short',
 });
 
 const printReport = () => window.print();
@@ -35,11 +54,11 @@ onMounted(() => {
   <main data-print-accounting class="mx-auto max-w-5xl space-y-6 bg-white p-6 text-slate-900 sm:p-10">
     <header class="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4">
       <div>
-        <p class="brand-wordmark text-lg">Pollos <span class="brand-wordmark-accent">Misme</span></p>
+        <img :src="'/images/pollos-misme-logo-small.png'" alt="Pollos Misme" class="mb-1 h-16 w-16 object-contain">
         <p class="text-xs font-bold uppercase tracking-[0.16em]">Contabilidad</p>
-        <h1 class="mt-1 text-2xl font-black">Reporte resumido de ventas</h1>
+        <h1 class="mt-1 text-2xl font-black">Reporte resumido de ventas y gastos</h1>
         <p class="mt-2 text-sm">Período: {{ filters.from }} al {{ filters.to }}</p>
-        <p class="mt-1 text-xs text-slate-500">Una fila por venta. El detalle de platos está disponible en el CSV.</p>
+        <p class="mt-1 text-xs text-slate-500">Una fila por venta y una lista de gastos. El detalle de platos está disponible en el CSV.</p>
       </div>
       <div class="print-hidden flex gap-2">
         <button type="button" @click="printReport" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Imprimir</button>
@@ -47,7 +66,7 @@ onMounted(() => {
       </div>
     </header>
 
-    <section class="grid grid-cols-2 gap-3 border-b border-slate-300 pb-5 sm:grid-cols-5">
+    <section class="grid grid-cols-2 gap-3 border-b border-slate-300 pb-5 sm:grid-cols-4">
       <div>
         <p class="text-xs text-slate-500">Total vendido</p>
         <p class="font-black">{{ formatCurrency(summary.total) }}</p>
@@ -63,6 +82,14 @@ onMounted(() => {
       <div>
         <p class="text-xs text-slate-500">QR</p>
         <p class="font-black">{{ formatCurrency(summary.qr) }}</p>
+      </div>
+      <div>
+        <p class="text-xs text-slate-500">Gastos</p>
+        <p class="font-black text-rose-700">{{ formatCurrency(summary.gastos) }}</p>
+      </div>
+      <div>
+        <p class="text-xs text-slate-500">Balance</p>
+        <p class="font-black" :class="summary.balance >= 0 ? 'text-success-700' : 'text-rose-700'">{{ formatCurrency(summary.balance) }}</p>
       </div>
       <div>
         <p class="text-xs text-slate-500">Otros métodos</p>
@@ -98,6 +125,39 @@ onMounted(() => {
         </tr>
       </tfoot>
     </table>
+
+    <section class="space-y-3">
+      <div class="flex items-end justify-between border-b border-slate-300 pb-2">
+        <div>
+          <h2 class="text-sm font-black">Gastos del período</h2>
+          <p class="text-xs text-slate-500">{{ gastos.length }} gastos registrados</p>
+        </div>
+        <p class="text-sm font-black">Total: {{ formatCurrency(summary.gastos) }}</p>
+      </div>
+
+      <p v-if="!gastos.length" class="py-6 text-center text-sm text-slate-500">No hay gastos en este período.</p>
+
+      <table v-else class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-y border-slate-300 bg-slate-50 text-left text-slate-600">
+            <th class="py-2 pr-3 font-bold">Fecha</th>
+            <th class="px-2 py-2 font-bold">Descripción</th>
+            <th class="px-2 py-2 font-bold">Categoría</th>
+            <th class="px-2 py-2 font-bold">Método</th>
+            <th class="py-2 pl-2 text-right font-bold">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="gasto in gastos" :key="gasto.id" data-print-accounting-sale class="border-b border-slate-200">
+            <td class="py-2 pr-3 text-slate-600">{{ formatExpenseDate(gasto.fecha) }}</td>
+            <td class="px-2 py-2 font-semibold">{{ gasto.descripcion }}</td>
+            <td class="px-2 py-2 text-slate-600">{{ categoriaGastoLabel(gasto.categoria) }}</td>
+            <td class="px-2 py-2 text-slate-600">{{ metodoGastoLabel(gasto.metodo_pago) }}</td>
+            <td class="py-2 pl-2 text-right font-bold">{{ formatCurrency(gasto.monto) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-[10px] text-slate-500">
       <span>Reporte resumido generado el {{ new Date().toLocaleString('es-BO') }}.</span>

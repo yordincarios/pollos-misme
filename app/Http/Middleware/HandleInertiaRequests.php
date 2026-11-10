@@ -40,6 +40,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $request->user()?->only('id', 'name', 'email'),
             ],
+            'features' => [
+                'gestion_usuarios' => (bool) config('features.gestion_usuarios', false),
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

@@ -15,6 +15,7 @@ const props = defineProps({
   productSales: { type: Object, required: true },
   recentSales: { type: Array, default: () => [] },
   dailySales: { type: Array, default: () => [] },
+  finanzas: { type: Object, required: true },
 });
 
 const todayLabel = computed(() => new Date(`${props.today}T00:00:00`).toLocaleDateString('es-BO', {
@@ -27,6 +28,12 @@ const paymentMethodLabel = (method) => ({
 }[method] || 'Otro');
 
 const weekTotal = computed(() => Number(props.weekSummary.total) || 0);
+const balanceHoy = computed(() => Number(props.finanzas.balance_hoy) || 0);
+const weekExpenses = computed(() => props.dailySales.reduce(
+  (total, day) => total + (Number(day.gastos) || 0),
+  0,
+));
+const weekProfit = computed(() => weekTotal.value - weekExpenses.value);
 
 const previousWeekTotal = computed(() => props.dailySales.reduce(
   (total, day) => total + (Number(day.previous_total) || 0),
@@ -61,10 +68,10 @@ const saleDate = (date) => new Date(date).toLocaleString('es-BO', {
         <p class="text-xs font-semibold text-slate-500">Últimos 7 días: {{ period.from }} — {{ period.to }}</p>
       </section>
 
-      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de ventas de hoy">
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Indicadores de ventas de hoy">
         <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 40ms">
           <div class="flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-slate-500">Vendido hoy</p>
+            <p class="text-sm font-semibold text-slate-500">Ingresos de hoy</p>
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><UiIcon name="chart" :size="19" /></span>
           </div>
           <p class="mt-3 text-2xl font-black text-slate-900"><AnimatedValue :value="summary.total" format="currency" /></p>
@@ -89,6 +96,21 @@ const saleDate = (date) => new Date(date).toLocaleString('es-BO', {
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><UiIcon name="qr" :size="19" /></span>
           </div>
           <p class="mt-3 text-2xl font-black text-slate-900"><AnimatedValue :value="summary.qr" format="currency" /></p>
+        </article>
+        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 280ms">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-slate-500">Gastos de hoy</p>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-700"><UiIcon name="wallet" :size="19" /></span>
+          </div>
+          <p class="mt-3 text-2xl font-black text-rose-700"><AnimatedValue :value="finanzas.gastos_hoy" format="currency" /></p>
+        </article>
+        <article class="dashboard-kpi rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 340ms">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-slate-500">Ganancia de hoy</p>
+            <span :class="['flex h-10 w-10 items-center justify-center rounded-xl', balanceHoy >= 0 ? 'bg-success-50 text-success-700' : 'bg-rose-50 text-rose-700']"><UiIcon name="chart" :size="19" /></span>
+          </div>
+          <p :class="['mt-3 text-2xl font-black', balanceHoy >= 0 ? 'text-success-700' : 'text-rose-700']"><AnimatedValue :value="balanceHoy" format="currency" /></p>
+          <p class="mt-1 text-xs text-slate-500">ventas menos gastos</p>
         </article>
       </section>
 
@@ -134,6 +156,27 @@ const saleDate = (date) => new Date(date).toLocaleString('es-BO', {
         <div v-else class="mt-4 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
           No hay ventas registradas en los últimos 7 días.
         </div>
+      </section>
+
+      <section class="dashboard-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" style="animation-delay: 360ms" aria-label="Gastos y ganancia de los últimos siete días">
+        <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 class="font-extrabold text-slate-900">Gastos y ganancia de los últimos 7 días</h2>
+            <p class="mt-1 text-xs text-slate-500">Salidas frente a la ganancia diaria</p>
+          </div>
+          <div class="flex flex-wrap gap-5">
+            <div>
+              <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-rose-600">Gastos</p>
+              <p class="mt-0.5 text-lg font-black text-rose-700"><AnimatedValue :value="weekExpenses" format="currency" /></p>
+            </div>
+            <div>
+              <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-success-600">Ganancia</p>
+              <p :class="['mt-0.5 text-lg font-black', weekProfit >= 0 ? 'text-success-700' : 'text-rose-700']"><AnimatedValue :value="weekProfit" format="currency" /></p>
+            </div>
+          </div>
+        </div>
+
+        <SalesTrendChart :days="dailySales" mode="finanzas" :height="240" />
       </section>
 
       <section class="dashboard-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" style="animation-delay: 400ms">
